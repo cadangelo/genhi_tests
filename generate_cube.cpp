@@ -3,6 +3,7 @@
 #include "moab/Types.hpp"
 #include "moab/GeomTopoTool.hpp"
 #include "DagMC.hpp"
+#include "DagMC_generate_hierarchy.hpp"
 #include <iostream>
 
 
@@ -218,8 +219,8 @@ int main(int  argc, char **argv)
   //DAG = DagMC::instance( MBI );
 
   ErrorCode rval;
-  const char* output_file_name = "test_geom.h5m";
- /* 
+  const char* output_file_name = "test_geom.vtk";
+ 
   // get all handles (dimension, id, sense)
   rval = mbi.tag_get_handle( NAME_TAG_NAME, NAME_TAG_SIZE, MB_TYPE_OPAQUE,
                                 name_tag, MB_TAG_SPARSE|MB_TAG_CREAT );
@@ -259,12 +260,16 @@ int main(int  argc, char **argv)
                               MB_TAG_SPARSE|MB_TAG_CREAT );
   CHKERR;
 
-*/
+
 
   double tmp_scale[3] = {1, 1, 1};
   double tmp_trans[3] = {0, 0, 0};
   rval = write_geometry( tmp_scale, tmp_trans );
 
+  double tmp_scale2[3] = {4, 4, 4};
+  double tmp_trans2[3] = {0, 0, 0};
+
+  rval = write_geometry( tmp_scale2, tmp_trans2 );
   CHKERR; 
   
   rval = mbi.write_mesh( output_file_name );
