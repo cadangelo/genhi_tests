@@ -31,6 +31,9 @@ DagMC *DAG;
 ErrorCode build_cube( const char* output_file_name );
 
 ErrorCode get_all_handles();
+void print_tree();
+Range get_children_by_dimension(EntityHandle parent, int desired_dimension);
+const char* get_object_name( EntityHandle object );
 
 ErrorCode build_cube( double scale_vec[3], 
                           double trans_vec[3] )
@@ -247,6 +250,7 @@ int main(int  argc, char **argv)
   rval = mbi->write_mesh( output_file_name );
   CHKERR;
 
+  print_tree();
   return 0;
 
 }
@@ -287,4 +291,60 @@ ErrorCode get_all_handles()
   CHKERR;
   return MB_SUCCESS;
 
+}
+
+// print each volume's children
+void print_tree()
+{
+  for ( int i =1; i <= DAG->num_entities(3) ; i++)
+    {
+      EntityHandle volume = DAG->entity_by_index(3, i);
+      Range children = get_children_by_dimension( volume, 3);
+      
+      const char* volume_name = get_object_name( volume );
+      std::cout << "Volume " << volume_name << " has children: " << std::endl;
+      
+      for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
+        {
+          const char* child_name = get_object_name( *j );
+          std::cout << child_name << std::endl;
+        }
+    }
+}
+
+Range get_children_by_dimension(EntityHandle parent, int desired_dimension)
+{
+  Range all_children, desired_children;
+  Range::iterator it;
+  ErrorCode rval;
+  int actual_dimension;
+
+  all_children.clear();
+  rval = mbi->get_child_meshsets(parent, all_children);
+
+  for ( it = all_children.begin() ; it != all_children.end() ; ++it)
+    {
+      rval = mbi->tag_get_data(geom_tag, &(*it), 1, &actual_dimension);
+      if ( actual_dimension == desired_dimension )
+        {
+          desired_children.insert(*it);
+        }
+    }
+
+  return desired_children;
+  
+}
+
+const char* get_object_name( EntityHandle object )
+{
+  const void* p;
+  int len=32;
+  const char* str;
+  ErrorCode rval;
+  
+  rval = mbi->tag_get_by_ptr( obj_name_tag, &object, 1, &p, &len);
+
+  str = static_cast<const char*>(p);
+ 
+  return str;
 }
