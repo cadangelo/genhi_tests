@@ -7,8 +7,8 @@ include /home/chelsea/opt/myMOAB/lib/moab.make
 CXXFLAGS += ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} ${MOAB_CPPFLAGS} -g 
 CXX = g++
 
-# MOAB_LIBS_LINK = ${MOAB_LDFLAGS} -L${MOAB_LIBDIR} -lMOAB    -lhdf5    -lpthread -lz -ldl -lm     -lpthread -lz -ldl -lm
-MOAB_LIBS_LINK = ${MOAB_LDFLAGS}  -L${MOAB_LIBDIR} -lMOAB
+MOAB_LIBS_LINK = ${MOAB_LDFLAGS} -L${MOAB_LIBDIR} -ldagmc -lMOAB    -lhdf5    -lpthread -lz -ldl -lm     -lpthread -lz -ldl -lm
+#MOAB_LIBS_LINK = ${MOAB_LDFLAGS}  -L${MOAB_LIBDIR} -lMOAB
 
 all: generate_cube 
 
