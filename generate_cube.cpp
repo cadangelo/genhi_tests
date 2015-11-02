@@ -64,7 +64,6 @@ ErrorCode build_cube( double scale_vec[3],
     4, 5, 7,  5, 6, 7 // +Z
   };
 
-  //  const unsigned tris_per_surf[] = {12};
   
   // Create the geometry
   const unsigned num_verts = 8; //sizeof(coords) / (3*sizeof(double));
@@ -230,13 +229,18 @@ int main(int  argc, char **argv)
   rval = get_all_handles();
 
 
-  GenerateHierarchy *gh = new GenerateHierarchy(mbi, rval);
   //  GenerateHierarchy gh;
   //GenerateHierarchy gh (mbi,rval); 
 
+  double tmp_scale3[3] = {8, 8, 8};
+  double tmp_trans3[3] = {0, 0, 0};
+
+  rval = build_cube( tmp_scale3, tmp_trans3 );
+  CHKERR; 
   double tmp_scale[3] = {1, 1, 1};
   double tmp_trans[3] = {0, 0, 0};
   rval = build_cube( tmp_scale, tmp_trans );
+  CHKERR; 
 
   double tmp_scale2[3] = {4, 4, 4};
   double tmp_trans2[3] = {0, 0, 0};
@@ -244,12 +248,15 @@ int main(int  argc, char **argv)
   rval = build_cube( tmp_scale2, tmp_trans2 );
   CHKERR; 
  
+
+  GenerateHierarchy *gh = new GenerateHierarchy(mbi, rval);
   gh->build_hierarchy();
   gh->construct_topology();
+
+//  DAG = DagMC::instance(); //static member fxn
  
   rval = mbi->write_mesh( output_file_name );
   CHKERR;
-
   print_tree();
   return 0;
 
@@ -300,16 +307,20 @@ void print_tree()
     {
       EntityHandle volume = DAG->entity_by_index(3, i);
       Range children = get_children_by_dimension( volume, 3);
-      
-      const char* volume_name = get_object_name( volume );
-      std::cout << "Volume " << volume_name << " has children: " << std::endl;
-      
-      for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
+      std::cout << "Vol " << i << " eh: "<< volume <<std::endl;      
+      // const char* volume_name = get_object_name( volume );
+      if( children.size() != 0)
         {
-          const char* child_name = get_object_name( *j );
-          std::cout << child_name << std::endl;
-        }
+          std::cout << "Volume " << i << " has children: " << std::endl;
+      
+          for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
+            {
+              //const char* child_name = get_object_name( *j );
+              std::cout << *j << std::endl;
+            }
+         }
     }
+
 }
 
 Range get_children_by_dimension(EntityHandle parent, int desired_dimension)

@@ -16,7 +16,7 @@ generate_cube.o: generate_cube.cpp
 	$(CXX) $(CXXFLAGS) -c $^ -o $@ 
 
 generate_cube: generate_cube.o
-	$(CXX) $(CXXFLAGS) $^ $(MOAB_LIBS_LINK) -o $@
+	$(CXX) $(CXXFLAGS) $^ $(MOAB_LIBS_LINK) -static -o $@
 	
 
 clean: 
