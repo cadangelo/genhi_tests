@@ -5,7 +5,7 @@
 #include "DagMC.hpp"
 #include "GenerateHierarchy.hpp"
 #include <iostream>
-
+#include <map>
 
 #define CHKERR if (MB_SUCCESS != rval) return rval
 
@@ -28,15 +28,18 @@ DagMC *DAG;
 
 
 // Create file containing geometry for 1x1x1 cube 
-ErrorCode build_cube( const char* output_file_name );
+//ErrorCode build_cube( const char* output_file_name );
 
+//print_tree();
+void check_tree ( std::map< int, std::vector<int> > ref_map );
+std::map< int, std::vector<int> > generate_map();
 ErrorCode get_all_handles();
-void print_tree();
 Range get_children_by_dimension(EntityHandle parent, int desired_dimension);
 const char* get_object_name( EntityHandle object );
 
 ErrorCode build_cube( double scale_vec[3], 
-                          double trans_vec[3] )
+                      double trans_vec[3], 
+                      int    object_id )
 {
   ErrorCode rval;
   
@@ -127,8 +130,7 @@ ErrorCode build_cube( double scale_vec[3],
   CHKERR;
 
   // set id tag
-  int ids = 1;
-  rval = mbi->tag_set_data( id_tag, &surf, 1, &ids );
+  rval = mbi->tag_set_data( id_tag, &surf, 1, &object_id );
   CHKERR;
 
   // set geom tag
@@ -161,8 +163,7 @@ ErrorCode build_cube( double scale_vec[3],
   CHKERR;  
   rval = mbi->tag_set_data( obj_name_tag, &surf, 1, object_name.c_str() ); 
   CHKERR;
-
-  rval = mbi->tag_set_data( id_tag, &volume, 1, &(ids) );
+  rval = mbi->tag_set_data( id_tag, &volume, 1, &(object_id) );
   CHKERR;
   int three = 3;
   rval = mbi->tag_set_data( geom_tag, &volume, 1, &(three) );
@@ -231,21 +232,27 @@ int main(int  argc, char **argv)
 
   //  GenerateHierarchy gh;
   //GenerateHierarchy gh (mbi,rval); 
+  int object_id = 1;
 
   double tmp_scale3[3] = {8, 8, 8};
   double tmp_trans3[3] = {0, 0, 0};
 
-  rval = build_cube( tmp_scale3, tmp_trans3 );
+  rval = build_cube( tmp_scale3, tmp_trans3, object_id++ );
   CHKERR; 
   double tmp_scale[3] = {1, 1, 1};
   double tmp_trans[3] = {0, 0, 0};
-  rval = build_cube( tmp_scale, tmp_trans );
+  rval = build_cube( tmp_scale, tmp_trans, object_id++ );
   CHKERR; 
 
   double tmp_scale2[3] = {4, 4, 4};
   double tmp_trans2[3] = {0, 0, 0};
 
-  rval = build_cube( tmp_scale2, tmp_trans2 );
+  //create ref map
+  std::map< int, std::vector<int> > ref_map { {1, {2, 3}}, 
+                                                {2, {NULL}}, 
+                                                {3,    {2}} }  ;
+
+  rval = build_cube( tmp_scale2, tmp_trans2, object_id++ );
   CHKERR; 
  
 
@@ -253,11 +260,13 @@ int main(int  argc, char **argv)
   gh->build_hierarchy();
   gh->construct_topology();
 
-//  DAG = DagMC::instance(); //static member fxn
+  DAG = DagMC::instance(); //static member fxn
  
   rval = mbi->write_mesh( output_file_name );
   CHKERR;
-  print_tree();
+  //print_tree();
+  check_tree( ref_map );
+  
   return 0;
 
 }
@@ -301,13 +310,21 @@ ErrorCode get_all_handles()
 }
 
 // print each volume's children
-void print_tree()
+//void print_tree()
+std::map< int, std::vector<int> > generate_map()
 {
+
+  std::map< int, std::vector<int> > gh_map;
+  
   for ( int i =1; i <= DAG->num_entities(3) ; i++)
     {
       EntityHandle volume = DAG->entity_by_index(3, i);
       Range children = get_children_by_dimension( volume, 3);
-      std::cout << "Vol " << i << " eh: "<< volume <<std::endl;      
+      std::cout << "Vol " << i << " eh: "<< volume <<std::endl;    
+     
+      // create parent level of map
+      gh_map[i]; 
+ 
       // const char* volume_name = get_object_name( volume );
       if( children.size() != 0)
         {
@@ -317,10 +334,59 @@ void print_tree()
             {
               //const char* child_name = get_object_name( *j );
               std::cout << *j << std::endl;
+
+              // add children to parent's map
+              gh_map[i].push_back(*j);
             }
          }
     }
 
+  return gh_map;
+}
+
+void check_tree ( std::map< int, std::vector<int> > ref_map )
+{
+  std::map< int, std::vector<int> > test_map;
+ 
+  //generate parent map 
+  for ( int i = 1; i <= DAG->num_entities(3) ; i++)
+    {
+      EntityHandle volume = DAG->entity_by_index(3, i);
+      Range children = get_children_by_dimension( volume, 3);
+     
+      // create parent level of map
+      test_map[i]; 
+ 
+      // const char* volume_name = get_object_name( volume );
+      for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
+        {
+          // add children to parent's map
+          test_map[i].push_back(*j);
+        }
+    }
+
+  //check test map against ref map
+//  for ( std::map< int, std::vector<int> >::const_iterator it = ref_map.begin(); 
+  //      it !=ref_map.end(); ++it)
+  for ( auto it = ref_map.cbegin(); it != ref_map.cend(); ++it)
+    {
+      std::cout<< it-> first << " " << it->second.first << " " <<
+                  it->second.second << std::endl;
+    }
+/*
+  for ( int i = 1; i <= DAG->num_entities(3) ; i++)
+    {
+      if( ref_map.find(i) != ref_map.end() )
+       {
+         std::map<int, int>::iterator it = ref_map.find(i);
+         //if (ref_map.find(i) != test_map.find(i))
+         std::cout << it->second << std::endl;
+//           std::cout << "parent vols: " << i << std::endl;
+
+
+       }       
+    } 
+*/
 }
 
 Range get_children_by_dimension(EntityHandle parent, int desired_dimension)

@@ -5,7 +5,7 @@ include /home/chelsea/opt/myMOAB/lib/moab.make
 #LIBS = -L/home/chelsea/opt/myMOAB/lib
 #MOAB_CXXFLAGS =  -Wall -pipe -pedantic -Wno-long-long ${INC} ${LIBS}
 CXXFLAGS += ${MOAB_CXXFLAGS} ${MOAB_INCLUDES} ${MOAB_CPPFLAGS} -g 
-CXX = g++
+CXX = g++ -std=c++11
 
 MOAB_LIBS_LINK = ${MOAB_LDFLAGS} -L${MOAB_LIBDIR} -ldagmc -lMOAB    -lhdf5    -lpthread -lz -ldl -lm     -lpthread -lz -ldl -lm
 #MOAB_LIBS_LINK = ${MOAB_LDFLAGS}  -L${MOAB_LIBDIR} -lMOAB
