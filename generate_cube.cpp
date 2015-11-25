@@ -6,6 +6,8 @@
 #include "GenerateHierarchy.hpp"
 #include <iostream>
 #include <map>
+#include <set>
+
 
 #define CHKERR if (MB_SUCCESS != rval) return rval
 
@@ -30,9 +32,9 @@ DagMC *DAG;
 // Create file containing geometry for 1x1x1 cube 
 //ErrorCode build_cube( const char* output_file_name );
 
-//print_tree();
-void check_tree ( std::map< int, std::vector<int> > ref_map );
-std::map< int, std::vector<int> > generate_map();
+void print_tree();
+bool check_tree ( std::map< int, std::set<int> > ref_map );
+//std::map< int, std::vector<int> > generate_map();
 ErrorCode get_all_handles();
 Range get_children_by_dimension(EntityHandle parent, int desired_dimension);
 const char* get_object_name( EntityHandle object );
@@ -247,14 +249,14 @@ int main(int  argc, char **argv)
   double tmp_scale2[3] = {4, 4, 4};
   double tmp_trans2[3] = {0, 0, 0};
 
-  //create ref map
-  std::map< int, std::vector<int> > ref_map { {1, {2, 3}}, 
-                                                {2, {NULL}}, 
-                                                {3,    {2}} }  ;
 
   rval = build_cube( tmp_scale2, tmp_trans2, object_id++ );
   CHKERR; 
  
+  //create ref map
+  std::map< int, std::set<int> > ref_map { {1, {3}   }, 
+                                           {2, {NULL}}, 
+                                           {3, {2}}  };
 
   GenerateHierarchy *gh = new GenerateHierarchy(mbi, rval);
   gh->build_hierarchy();
@@ -264,9 +266,17 @@ int main(int  argc, char **argv)
  
   rval = mbi->write_mesh( output_file_name );
   CHKERR;
-  //print_tree();
-  check_tree( ref_map );
+
+  print_tree();
+
+  bool result;
+  result = check_tree( ref_map );
   
+  if (result == true)
+    std::cout << "PASS" << std::endl;
+  else  
+    std::cout << "FAIL" << std::endl;
+
   return 0;
 
 }
@@ -310,83 +320,92 @@ ErrorCode get_all_handles()
 }
 
 // print each volume's children
-//void print_tree()
-std::map< int, std::vector<int> > generate_map()
+void print_tree()
 {
-
-  std::map< int, std::vector<int> > gh_map;
-  
   for ( int i =1; i <= DAG->num_entities(3) ; i++)
     {
       EntityHandle volume = DAG->entity_by_index(3, i);
       Range children = get_children_by_dimension( volume, 3);
       std::cout << "Vol " << i << " eh: "<< volume <<std::endl;    
      
-      // create parent level of map
-      gh_map[i]; 
- 
-      // const char* volume_name = get_object_name( volume );
       if( children.size() != 0)
         {
           std::cout << "Volume " << i << " has children: " << std::endl;
       
           for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
             {
-              //const char* child_name = get_object_name( *j );
               std::cout << *j << std::endl;
 
-              // add children to parent's map
-              gh_map[i].push_back(*j);
             }
          }
     }
 
-  return gh_map;
+  return;
 }
 
-void check_tree ( std::map< int, std::vector<int> > ref_map )
+bool check_tree ( std::map< int, std::set<int> > ref_map )
 {
-  std::map< int, std::vector<int> > test_map;
- 
-  //generate parent map 
+  ErrorCode rval;
+  std::map< int, std::set<int> > test_map;
+  int vol_id;
+  std::set<int> ref_set;
+  std::set<int> test_set;
+  std::set<int>::iterator it;
+
+  //go through volumes, create sets of children
   for ( int i = 1; i <= DAG->num_entities(3) ; i++)
     {
+      //get vol id
       EntityHandle volume = DAG->entity_by_index(3, i);
-      Range children = get_children_by_dimension( volume, 3);
-     
-      // create parent level of map
-      test_map[i]; 
+      rval = mbi->tag_get_data(id_tag, &volume, 1, &vol_id );
+      CHKERR;
  
-      // const char* volume_name = get_object_name( volume );
+      //check if test vol in ref map
+      if (ref_map.find(vol_id) == ref_map.end())
+        {
+          std::cout << "Vol NOT found" << std::endl;
+          return false;
+        }
+      else
+        {
+          //put children into set
+          ref_set = ref_map.find(vol_id)->second;
+          for (it = ref_set.begin(); it !=ref_set.end(); ++it)
+            { 
+              std::cout << "ref vol " << vol_id << " child " << *it << std::endl;
+            }
+        }
+  
+
+      //put range of children into set
+      Range children = get_children_by_dimension( volume, 3);
+
       for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
         {
-          // add children to parent's map
-          test_map[i].push_back(*j);
+            int child_id;
+            std::cout << "test children " << *j << std::endl;
+            rval = mbi->tag_get_data(id_tag, &(*j), 1, &child_id );
+            test_set.insert(child_id);
+            for (it = test_set.begin(); it !=test_set.end(); ++it)
+            { 
+              std::cout << "test vol " << vol_id << " child " << *it << std::endl;
+            }
         }
+
+      // compare sets
+      if (ref_set == test_set)
+        {
+          std::cout << "sets are equal" << std::endl;
+          return true;
+        }
+      else
+        {
+          std::cout << "sets NOT equal" << std::endl;
+          return false;
+        }
+
     }
 
-  //check test map against ref map
-//  for ( std::map< int, std::vector<int> >::const_iterator it = ref_map.begin(); 
-  //      it !=ref_map.end(); ++it)
-  for ( auto it = ref_map.cbegin(); it != ref_map.cend(); ++it)
-    {
-      std::cout<< it-> first << " " << it->second.first << " " <<
-                  it->second.second << std::endl;
-    }
-/*
-  for ( int i = 1; i <= DAG->num_entities(3) ; i++)
-    {
-      if( ref_map.find(i) != ref_map.end() )
-       {
-         std::map<int, int>::iterator it = ref_map.find(i);
-         //if (ref_map.find(i) != test_map.find(i))
-         std::cout << it->second << std::endl;
-//           std::cout << "parent vols: " << i << std::endl;
-
-
-       }       
-    } 
-*/
 }
 
 Range get_children_by_dimension(EntityHandle parent, int desired_dimension)
@@ -425,3 +444,26 @@ const char* get_object_name( EntityHandle object )
  
   return str;
 }
+
+  /*check test map against ref map
+//  for ( std::map< int, std::vector<int> >::const_iterator it = ref_map.begin(); 
+  //      it !=ref_map.end(); ++it)
+  for ( auto it = ref_map.cbegin(); it != ref_map.cend(); ++it)
+    {
+      std::cout<< it-> first << std::endl; //" " << it->second.first << " " <<
+//                  it->second.second << std::endl;
+    }
+
+  for ( int i = 1; i <= DAG->num_entities(3) ; i++)
+    {
+      if( ref_map.find(i) != ref_map.end() )
+       {
+         std::map<int, int>::iterator it = ref_map.find(i);
+         //if (ref_map.find(i) != test_map.find(i))
+         std::cout << it->second << std::endl;
+//           std::cout << "parent vols: " << i << std::endl;
+
+
+       }       
+    } 
+*/
