@@ -236,26 +236,26 @@ int main(int  argc, char **argv)
   //GenerateHierarchy gh (mbi,rval); 
   int object_id = 1;
 
+
+  double tmp_scale[3] = {1, 1, 1};
+  double tmp_trans[3] = {0, 0, 0};
+  rval = build_cube( tmp_scale, tmp_trans, 2 );
+  CHKERR; 
   double tmp_scale3[3] = {8, 8, 8};
   double tmp_trans3[3] = {0, 0, 0};
 
-  rval = build_cube( tmp_scale3, tmp_trans3, object_id++ );
+  rval = build_cube( tmp_scale3, tmp_trans3, 1 );
   CHKERR; 
-  double tmp_scale[3] = {1, 1, 1};
-  double tmp_trans[3] = {0, 0, 0};
-  rval = build_cube( tmp_scale, tmp_trans, object_id++ );
-  CHKERR; 
-
   double tmp_scale2[3] = {4, 4, 4};
   double tmp_trans2[3] = {0, 0, 0};
 
 
-  rval = build_cube( tmp_scale2, tmp_trans2, object_id++ );
+  rval = build_cube( tmp_scale2, tmp_trans2, 3 );
   CHKERR; 
  
   //create ref map
   std::map< int, std::set<int> > ref_map { {1, {3}   }, 
-                                           {2, {NULL}}, 
+                                           {2, {}}, 
                                            {3, {2}}  };
 
   GenerateHierarchy *gh = new GenerateHierarchy(mbi, rval);
@@ -267,7 +267,7 @@ int main(int  argc, char **argv)
   rval = mbi->write_mesh( output_file_name );
   CHKERR;
 
-  print_tree();
+  //print_tree();
 
   bool result;
   result = check_tree( ref_map );
@@ -359,53 +359,32 @@ bool check_tree ( std::map< int, std::set<int> > ref_map )
       EntityHandle volume = DAG->entity_by_index(3, i);
       rval = mbi->tag_get_data(id_tag, &volume, 1, &vol_id );
       CHKERR;
- 
+
       //check if test vol in ref map
       if (ref_map.find(vol_id) == ref_map.end())
-        {
-          std::cout << "Vol NOT found" << std::endl;
-          return false;
-        }
-      else
-        {
-          //put children into set
-          ref_set = ref_map.find(vol_id)->second;
-          for (it = ref_set.begin(); it !=ref_set.end(); ++it)
-            { 
-              std::cout << "ref vol " << vol_id << " child " << *it << std::endl;
-            }
-        }
+        return false;
   
 
       //put range of children into set
-      Range children = get_children_by_dimension( volume, 3);
+      Range children;
+      children.clear();     
+      test_set.clear(); 
+      children = get_children_by_dimension( volume, 3);
 
       for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
         {
             int child_id;
-            std::cout << "test children " << *j << std::endl;
             rval = mbi->tag_get_data(id_tag, &(*j), 1, &child_id );
             test_set.insert(child_id);
-            for (it = test_set.begin(); it !=test_set.end(); ++it)
-            { 
-              std::cout << "test vol " << vol_id << " child " << *it << std::endl;
-            }
         }
 
       // compare sets
-      if (ref_set == test_set)
-        {
-          std::cout << "sets are equal" << std::endl;
-          return true;
-        }
-      else
-        {
-          std::cout << "sets NOT equal" << std::endl;
-          return false;
-        }
+      if ( test_set != ref_map[vol_id] )
+        return false;
 
     }
 
+  return true;
 }
 
 Range get_children_by_dimension(EntityHandle parent, int desired_dimension)
