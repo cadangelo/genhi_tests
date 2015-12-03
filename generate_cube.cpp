@@ -366,10 +366,15 @@ bool check_tree ( std::map< int, std::set<int> > ref_map )
   
 
       //put range of children into set
-      Range children;
+      Range children, child_surfs;
+      EntityHandle surf;
       children.clear();     
       test_set.clear(); 
       children = get_children_by_dimension( volume, 3);
+      child_surfs = get_children_by_dimension( surf, 2);
+
+      if(child_surfs.size() == 0 )
+        std::cout << "no kid surfs" << std::endl;
 
       for (Range::iterator j = children.begin() ; j != children.end() ; ++j )
         {
