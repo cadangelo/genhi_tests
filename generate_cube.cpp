@@ -24,32 +24,22 @@ Tag name_tag;
 Tag obj_name_tag;
 Tag dim_tag, id_tag; //sense_tag;
 
-//Core moab_instance;
-//Interface& MBI= moab_instance;
-//Interface *MBI();
-
 //Core mbi
 Core core;
 Interface *mbi= &core;
 DagMC *DAG;
 
 
-// Create file containing geometry for 1x1x1 cube 
-//ErrorCode build_cube( const char* output_file_name );
-
 void print_tree();
 bool check_tree ( std::map< int, std::set<int> > ref_map );
-//std::map< int, std::vector<int> > generate_map();
 ErrorCode get_all_handles();
 Range get_children_by_dimension(EntityHandle parent, int desired_dimension);
 const char* get_object_name( EntityHandle object );
-void heappermute(int v[], int n);
-void print_order( const int *v );
+ErrorCode heappermute(int v[], int n);
 void swap(int *x, int *y);
-//void get_cube_info( int cube_id, double (&scale)[3], double (&trans)[3] );
 void get_cube_info( int cube_id, std::array<double, 3> &scale, std::array<double, 3> &trans );
 
-int len = 3;
+int len = 6;
 
 ErrorCode build_cube( std::array<double, 3> scale_vec, 
                       std::array<double, 3> trans_vec, 
@@ -182,11 +172,7 @@ ErrorCode build_cube( std::array<double, 3> scale_vec,
   CHKERR1;
   
   // set sense tag    
-//  EntityHandle surf_volumes[2];
-//  surf_volumes[0] = volume;
-//  surf_volumes[1] = 0;
   rval = myGeomTool->set_sense(surf, volume, SENSE_FORWARD);
- //  rval = mbi->tag_set_data(sense_tag, &surf, 1, surf_volumes);
   CHKERR1;
  
   
@@ -194,31 +180,6 @@ ErrorCode build_cube( std::array<double, 3> scale_vec,
   
   return MB_SUCCESS;
 }
-/*
-EntityHandle scale_cube( EntityHandle verts, scale_vec )
-{
-  int i;
-  EntityHandle scaled_vert;
-  double scaled_coords[3];
-  double coords[3];
-  Range scaled_verts;  
-
-  for ( i = 0; i < 8; i++ ) 
-    { 
-      rval = mbi->get_coords(verts[i], coords);
-      scaled_coords[0] = coords[0]*scale_vec[0];
-      scaled_coords[1] = coords[1]*scale_vec[1];
-      scaled_coords[2] = coords[2]*scale_vec[2];
-      
-      rval = mbi->create_vertex( scaled_coords, scaled_vert );
-      scaled_verts.insert(scaled_vert);
-    }
-
-
-
-
-}
-*/
 /*
 static bool run_test( std::string name, int argc, char* argv[] )
 {
@@ -250,21 +211,18 @@ int main(int  argc, char **argv)
   // get all handles (dimension, id, sense)
   rval = get_all_handles();
 
-  int num[3] = {1, 2, 3};
-  //int num[6] = {1, 2, 3, 4, 5, 6};
-  int i;
+//  int num[3] = {1, 2, 3};
+  int num[6] = {1, 2, 3, 4, 5, 6};
 
   heappermute(num, len);
 
 
-  //  GenerateHierarchy gh;
-  //GenerateHierarchy gh (mbi,rval);
 
 /*
-  std::array<double, 3> tmp_scale3, tmp_trans3;
-  tmp_scale3 = {8, 8, 8};
-  tmp_trans3 = {0, 0, 0};
-  rval = build_cube( tmp_scale3, tmp_trans3, 3 );
+  std::array<double, 3> tmp_scale, tmp_trans;
+  tmp_scale = {1, 1, 1};
+  tmp_trans = {0, 0, 0};
+  rval = build_cube( tmp_scale, tmp_trans, 1 );
   CHKERR1; 
 
   std::array<double, 3> tmp_scale2, tmp_trans2;
@@ -273,10 +231,10 @@ int main(int  argc, char **argv)
   rval = build_cube( tmp_scale2, tmp_trans2, 2 );
   CHKERR1; 
 
-  std::array<double, 3> tmp_scale, tmp_trans;
-  tmp_scale = {1, 1, 1};
-  tmp_trans = {0, 0, 0};
-  rval = build_cube( tmp_scale, tmp_trans, 1 );
+  std::array<double, 3> tmp_scale3, tmp_trans3;
+  tmp_scale3 = {8, 8, 8};
+  tmp_trans3 = {0, 0, 0};
+  rval = build_cube( tmp_scale3, tmp_trans3, 3 );
   CHKERR1; 
 
  
@@ -327,10 +285,6 @@ ErrorCode get_all_handles()
                                 geom_tag, MB_TAG_SPARSE|MB_TAG_CREAT,&negone);
   CHKERR1;
 
-//  rval = mbi->tag_get_handle("GEOM_SENSE_2", 2, MB_TYPE_HANDLE,
-  //                              sense_tag, MB_TAG_SPARSE|MB_TAG_CREAT );
-  CHKERR1;
-
   rval = mbi->tag_get_handle( GLOBAL_ID_TAG_NAME, 
                               1, MB_TYPE_INTEGER, 
                               id_tag,
@@ -355,7 +309,6 @@ void print_tree()
     {
       EntityHandle volume = DAG->entity_by_index(3, i);
       Range children = get_children_by_dimension( volume, 3);
-      std::cout << "Vol " << i << " eh: "<< volume <<std::endl;    
      
       if( children.size() != 0)
         {
@@ -383,7 +336,6 @@ bool check_tree ( std::map< int, std::set<int> > ref_map )
 
   if (ref_map.size() != DAG->num_entities(3) )
    {
-    std::cout << "num vols: " << DAG->num_entities(3) << std::endl; 
     return false;
    }
 
@@ -401,19 +353,10 @@ bool check_tree ( std::map< int, std::set<int> > ref_map )
           return false;
         }
 
-      //put range of children into set
-      Range children, child_surfs;
-      //EntityHandle surf;
-      //children.clear();     
+      //put range of child surfaces into set
+      Range child_surfs;
       test_set.clear(); 
-      //children = get_children_by_dimension( volume, 3);
       child_surfs = get_children_by_dimension( volume, 2);
-      //child_surfs = get_children_by_dimension( surf, 2);
-
-      if(child_surfs.size() == 0 )
-        {
-          std::cout << "no kid surfs" << std::endl;
-        }
 
       for (Range::iterator j = child_surfs.begin() ; j != child_surfs.end() ; ++j )
         {
@@ -425,8 +368,9 @@ bool check_tree ( std::map< int, std::set<int> > ref_map )
 
       // compare sets
       if ( test_set != ref_map[vol_id] )
-        return false;
-
+        {
+         return false;
+        }
     }
 
   return true;
@@ -454,43 +398,6 @@ Range get_children_by_dimension(EntityHandle parent, int desired_dimension)
   return desired_children;
   
 }
-/*
-const char* get_object_name( EntityHandle object )
-{
-  const void* p;
-  int len=32;
-  const char* str;
-  ErrorCode rval;
-  
-  rval = mbi->tag_get_by_ptr( obj_name_tag, &object, 1, &p, &len);
-
-  str = static_cast<const char*>(p);
- 
-  return str;
-}
-*/
-  /*check test map against ref map
-//  for ( std::map< int, std::vector<int> >::const_iterator it = ref_map.begin(); 
-  //      it !=ref_map.end(); ++it)
-  for ( auto it = ref_map.cbegin(); it != ref_map.cend(); ++it)
-    {
-      std::cout<< it-> first << std::endl; //" " << it->second.first << " " <<
-//                  it->second.second << std::endl;
-    }
-
-  for ( int i = 1; i <= DAG->num_entities(3) ; i++)
-    {
-      if( ref_map.find(i) != ref_map.end() )
-       {
-         std::map<int, int>::iterator it = ref_map.find(i);
-         //if (ref_map.find(i) != test_map.find(i))
-         std::cout << it->second << std::endl;
-//           std::cout << "parent vols: " << i << std::endl;
-
-
-       }       
-    } 
-*/
 
 void swap(int *x, int *y)
 {
@@ -501,53 +408,38 @@ void swap(int *x, int *y)
   *y = temp;
 }
 
-void print_order( const int *v )
-{
-  int i;
-  int size = len;
-  
-  if (v != 0)
-    {
-      for (i = 0; i < size; i++)
-        printf("%4d", v[i]);
-    }
-
-  printf("\n");
-
-}
-
-void heappermute(int v[], int n)
+ErrorCode heappermute(int v[], int n)
 {
   ErrorCode rval; 
   const char* output_file_name = "test_geom.vtk";
-  int i; 
   std::array<double, 3> scale, trans;
 
-  std::map< int, std::set<int> > ref_map { {1, {1}   }, 
-                                           {2, {2, 1}}, 
-                                           {3, {3, 2}}  };
+  std::map< int, std::set<int> > ref_map { {1, {1}         }, 
+                                           {2, {2, 1}      }, 
+                                           {3, {3, 2}      },
+                                           {4, {4}         },
+                                           {5, {5}         },
+                                           {6, {6, 5, 4, 3}}  };
   if (n == 1)
     {
-      //have one permutation result array, v
       //build cubes
-      for (i = 0; i < 3; i++)
+      for (int i = 0; i < len; i++)
         {
-          std::cout << "v[i] " << v[i] << std::endl;
           get_cube_info(v[i], scale, trans);
-//          build_cube(scale, trans, (i+1));
           build_cube(scale, trans, v[i]);
         }
 
       //test tree
       GenerateHierarchy *gh = new GenerateHierarchy(mbi, rval);
-      gh->build_hierarchy();
+      rval = gh->build_hierarchy();
+      CHKERR1;
       rval = gh->construct_topology();
-      //CHKERR1;
+      CHKERR1;
   
       DAG = DagMC::instance(); 
    
       rval = mbi->write_mesh( output_file_name );
-      //CHKERR1;
+      CHKERR1;
   
       print_tree();
   
@@ -567,7 +459,7 @@ void heappermute(int v[], int n)
   
   else
     {
-      for (i = 0; i < n; i++)
+      for (int i = 0; i < n; i++)
         {
           heappermute(v, n-1);
           if (n % 2 == 1)
@@ -581,18 +473,13 @@ void heappermute(int v[], int n)
             }
         } 
     }
+
+  return MB_SUCCESS;
 }
-/*
-struct cube{
-  int id;
-  double scale_vec[3], 
-  double trans_vec[3], 
-};
-*/
+
 void get_cube_info( int cube_id, std::array<double, 3> &scale, std::array<double, 3> &trans )
 {
  
-  //cube my_cube;
   if ( cube_id == 1 )
     {
       scale = {1, 1, 1};
@@ -606,6 +493,21 @@ void get_cube_info( int cube_id, std::array<double, 3> &scale, std::array<double
   if ( cube_id == 3 )
     {
       scale = {8, 8, 8};
+      trans = {0, 0, 0};
+    }
+  if ( cube_id == 4 )
+    {
+      scale = {4, 4, 4};
+      trans = {0, 0, -10};
+    }
+  if ( cube_id == 5 )
+    {
+      scale = {4, 4, 4};
+      trans = {10, 0, -10};
+    }
+  if ( cube_id == 6 )
+    {
+      scale = {40, 40, 40};
       trans = {0, 0, 0};
     }
 
